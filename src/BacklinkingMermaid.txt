@@ -1,0 +1,172 @@
+# A small CLI: python scripts/generate_mermaid.py backlins.csv -o graph.mmd --dir LR
+import argparse
+import csv
+import html
+import re
+import sys
+from collections import OrderedDict, defaultdict
+
+ARROW_MAP = {
+    # common types -> mermaid arrow
+    "default": "-->",
+    "ref": "-->",
+    "include": "==>",
+    "embed": "-.->",
+    "cite": "--o",
+    "weak": "-.->",
+    "strong": "==>",
+    "nofollow": "-x->",
+}
+
+def safe_id(name, seen):
+    base = re.sub(r'[^0-9A-Za-z_]', '_', name).strip('_')
+    if not base:
+        base = "node"
+    nid = base
+    i = 1
+    while nid in seen:
+        i += 1
+        nid = f"{base}_{i}"
+    seen.add(nid)
+    return nid
+
+def escape_label(s):
+    # escape double quotes and produce printable label for mermaid node text / edge label
+    if s is None:
+        return ""
+    s = str(s)    """Find all markdown links in content"""
+    return re.findall(r'\[([^\]]*)\]\(([^)]*\.md)\)', content)
+
+def generate_mermaid_graph(folder_path):
+    """Generate mermaid graph code for markdown document relationships"""
+    relationships = []
+
+    for md_file in Path(folder_path).rglob('*.md'):
+        with open(md_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        source_name = md_file.stem.replace(' ', '_').replace('-', '_')
+
+        # Find all links in this file
+        for link_text, target_file in find_markdown_links(content):
+            target_path = (md_file.parent / target_file).resolve()
+            if target_path.exists():
+                target_name = target_path.stem.replace(' ', '_').replace('-', '_')
+                relationships.append(f"    {source_name} --> {target_name}")
+
+    # Generate mermaid code
+    mermaid_code = "graph TD\n"
+    for relationship in sorted(set(relationships)):
+        mermaid_code += relationship + "\n"
+
+    return mermaid_code
+    s = s.replace('"', '\\"')
+    # mermaid supports html entities; keep it simple
+    return s
+
+def detect_columns(fieldnames):
+    # prefer these names if present
+    lower = [f.strip().lower() for f in fieldnames]
+    def pick(cands, default=None):
+        for c in cands:
+            if c in lower:
+                return fieldnames[lower.index(c)]
+        return default
+    src = pick(["source", "from", "src", "file_a", "a"], fieldnames[0])
+    tgt = pick(["target", "to", "dst", "file_b", "b"], fieldnames[1] if len(fieldnames)>1 else fieldnames[0])
+    ltype = pick(["link_type", "type", "relation", "rel"], None)
+    return src, tgt, ltype
+
+def read_rows(path):
+    with open(path, newline='', encoding='utf-8') as f:
+        # allow CSV without header: fall back to positional if header looks like data
+        sniffer = csv.Sniffer()
+        sample = f.read(4096)
+        f.seek(0)
+        has_header = False
+        try:
+            has_header = sniffer.has_header(sample)
+        except Exception:
+            has_header = True
+        reader = csv.reader(f)
+        rows = list(reader)
+    if not rows:
+        return []
+    if has_header:
+        header = rows[0]
+        data = rows[1:]
+        out = []
+        for r in data:
+            # pad short rows
+            while len(r) < len(header):
+                r.append("")
+            out.append(dict(zip(header, r)))
+        return out, header
+    else:
+        # create generic header names
+        maxc = max(len(r) for r in rows)
+        header = [f"col{i}" for i in range(maxc)]
+        out = []
+        for r in rows:
+            while len(r) < maxc:
+                r.append("")
+            out.append(dict(zip(header, r)))
+        return out, header
+
+def build_mermaid(rows, header, direction="LR"):
+    src_col, tgt_col, ltype_col = detect_columns(header)
+    nodes = OrderedDict()  # name -> id
+    seen_ids = set()
+    edges = []
+    counts = defaultdict(int)
+    for r in rows:
+        src = r.get(src_col, "").strip()
+        tgt = r.get(tgt_col, "").strip()
+        ltype = (r.get(ltype_col, "") if ltype_col else "").strip() if ltype_col else ""
+        if not src or not tgt:
+            continue
+        if src not in nodes:
+            nodes[src] = safe_id(src, seen_ids)
+        if tgt not in nodes:
+            nodes[tgt] = safe_id(tgt, seen_ids)
+        arrow = ARROW_MAP.get(ltype.lower() if ltype else "default", ARROW_MAP["default"])
+        edges.append((nodes[src], nodes[tgt], src, tgt, ltype, arrow))
+        counts[ltype or "default"] += 1
+
+    lines = []
+    lines.append(f"graph {direction}")
+    lines.append("%% nodes")
+    for name, nid in nodes.items():
+        label = escape_label(name)
+        lines.append(f'{nid}["{label}"]')
+    lines.append("%% edges")
+    for s_id, t_id, s_name, t_name, ltype, arrow in edges:
+        lbl = escape_label(ltype) if ltype else ""
+        if lbl:
+            lines.append(f'{s_id} {arrow}|{lbl}| {t_id}')
+        else:
+            lines.append(f'{s_id} {arrow} {t_id}')
+    # simple legend block
+    lines.append("%% legend")
+    for k, v in sorted({(k or "default"): ARROW_MAP.get((k or "default").lower(), ARROW_MAP["default"]) for k in counts}.items()):
+        lines.append(f'%% {k} -> {v}')
+    return "\n".join(lines)
+
+def main():
+    p = argparse.ArgumentParser(description="Generate mermaid graph from a CSV of backlinks/links.")
+    p.add_argument("csv", help="input CSV file (headers like source,target,link_type or positional)")
+    p.add_argument("-o", "--out", help="output file (default stdout)")
+    p.add_argument("--dir", choices=("LR","RL","TB","BT"), default="LR", help="graph direction (LR, RL, TB, BT)")
+    args = p.parse_args()
+
+    rows, header = read_rows(args.csv)
+    mermaid = build_mermaid(rows, header, direction=args.dir)
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as f:
+            f.write(mermaid)
+        print(f"Wrote mermaid to {args.out}")
+    else:
+        print(mermaid)
+
+if __name__ == "__main__":
+    main()

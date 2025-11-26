@@ -1,0 +1,24 @@
+[project]
+name = "markdown_linker"
+version = "0.0.1"
+authors = [
+  { name="Duckie NukeEm", email="DuckieNukeEm@gmail.com" },
+]
+description = "A simple tool to add links to markdown files."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/pypa/sampleproject"
+Issues = "https://github.com/pypa/sampleproject/issues"
+[tool.black]
+line-length = 80
+[tool.isort]
+profile = "black"
+multi_line_output = 3
