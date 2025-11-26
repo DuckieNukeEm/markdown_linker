@@ -1,6 +1,6 @@
 # Customer ignore
 test/markdown/
-
+Jupyter/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
