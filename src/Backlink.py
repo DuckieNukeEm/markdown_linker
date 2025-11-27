@@ -251,7 +251,7 @@ def get_yaml_dict(content) -> dict:
     :return: a dictionary of YAML fields, with the keys capitalized and all fields of YAML_FIELDS included
     :rtype: dict
     """
-
+    logging.info(f"Begging to extract yaml headers")
     yaml_content = find_yaml_header(content)
     source_yaml_dict = yaml_to_dict(yaml_content, capitalize_keys=True)
     all_yaml_fields = set(YAML_FIELDS + list(source_yaml_dict.keys()))
@@ -264,13 +264,6 @@ def get_yaml_dict(content) -> dict:
     )
     return yaml_dict
 
-
-def find_markdown_title(content):
-    """Find all markdown links in content"""
-    ret_str = re.findall(MARKDOWN_HEADER_FINDERR, content)[0]
-    ret_str = ret_str.replace("title:", "").strip()
-    # ret_str = quote_it(ret_str)
-    return ret_str
 
 
 def read_markdown_doc(markdon_doc_filepath: str):
@@ -294,7 +287,9 @@ def find_backlinks_section(content):
         BACKLINKS_SELECTOR, content, re.DOTALL
     )
     if backlinks_match:
+        logging.debug(f"Found backlinks section")
         return backlinks_match.group(1)
+    logging.debug(f"Didn't find backlinks section")
     return ""
 
 
@@ -302,10 +297,12 @@ def split_on_backlinks_section(content):
     """Extract backlinks section from content"""
     splitter = re.split(BACKLINKS_FINDER, content)
     if len(splitter) == 1:
+        logging.debug(f"Didn't find backlinks section")
         return [content, ""]
 
     main_body = "".join(splitter[0:-1])
     backlinks = splitter[-1]
+    logging.debug(f"Found backlinks section")
     return [main_body, backlinks]
 
 
@@ -319,7 +316,7 @@ def find_links(content):
     return re.findall(LINK_FINDER, content)
 
 
-def get_links(content: str, markdown_only: bool = True) -> tuple:
+def get_links(content: str, markdown_only: bool = True) -> tuple[list]:
     """Extract markdown links from content
 
     Args:
@@ -334,7 +331,8 @@ def get_links(content: str, markdown_only: bool = True) -> tuple:
 
     """
     if content == "":
-        return []
+        return [], []
+    
     split_md = split_on_backlinks_section(content)
     if len(split_md) <= 1:
         return [], []
@@ -358,7 +356,7 @@ def get_existing_backlinks(backlink_section):
 
 
 def get_markdown_information(
-    md_file_link, markdown_dict: dict, system_path: str
+    md_file_link: str, markdown_dict: dict, system_path: str
 ):
     """get's relevent information for each markdown file
 
@@ -367,7 +365,7 @@ def get_markdown_information(
         markdown_dict (dict): _description_
         system_dict (dict): _description_
     """
-    knowledge_dict = {
+    knowledge_dict: dict[str] = {
         "PATH": None,
         "REL_PATH": None,
         "BACKLINKS": [],
@@ -377,6 +375,7 @@ def get_markdown_information(
         "NEED2UPDATE": False,
     }
 
+    logging.debug(f"Generating the necessary infromation from {md_file_link}")
     md_content = read_markdown_doc(md_file_link)
 
     knowledge_dict["PATH"] = md_file_link
@@ -415,6 +414,7 @@ def populate_markdown_dictionary(md_file_links, system_dict: str):
     Args:
         md_file_links (_type_): _description_
     """
+    logging.info(f"Loading all {len(md_file_links)} markdown information")
     sys_path = system_dict["SYSTEM_PATH"]
 
     markdown_dict = system_dict["MARKDOWNS_DICT"]
@@ -472,6 +472,7 @@ def markdown_link_crosswalker(markdowns_dict):
 
             # Check if source links to target
             if target_md in source_dic["LINKS_PATH"]:
+                logging.debug(f"found {target_md} is in the link list of {source_md}")
                 link_list[source_md].remove(target_md)
                 Crosslinks_list.append(
                     post_linkage(source_dic, target_dic, "To Markdown", "Valid")
@@ -479,6 +480,7 @@ def markdown_link_crosswalker(markdowns_dict):
 
                 # if the source does link to the target, then the target NEEDS to backlink to source
                 if source_md not in target_dic["BACKLINKS_PATH"]:
+                    logging.debug(f"{source_md} is NOT in the backlinks section for {target_md}")
                     update_list.append(target_md)
                     target_dic["NEED2UPDATE"] = True
                     target_dic["BACKLINKS_PATH"].append(
@@ -492,12 +494,14 @@ def markdown_link_crosswalker(markdowns_dict):
 
             # same as above, just flipped
             if source_md in target_dic["LINKS_PATH"]:
+                logging.debug(f"found {source_md} is in the link list of {target_md}")
                 link_list[target_md].remove(source_md)
                 Crosslinks_list.append(
                     post_linkage(target_dic, source_dic, "To Markdown", "Valid")
                 )
 
                 if target_md not in source_dic["BACKLINKS_PATH"]:
+                    logging.debug(f"{target_md} is NOT in the backlinks section for {source_md}")
                     update_list.append(source_md)
                     source_dic["NEED2UPDATE"] = True
                     source_dic["BACKLINKS_PATH"].append(
@@ -540,13 +544,13 @@ def markdown_crossrefrence(system_dict):
     Args:
         system_dict (_type_): system dict with all the info
     """
-
+    logging.info(f"Checking the link connections between all markdown documents")
     system_dict["LINKS_DATA"], crosswalk_update_list = (
         markdown_link_crosswalker(system_dict["MARKDOWNS_DICT"])
     )
 
     system_dict['UPDATE'] = {} 
-    system_dict["UPDATE"]['backlinks'] = list(set(crosswalk_update_list))
+    system_dict['UPDATE']['BACKLINKS'] = list(set(crosswalk_update_list))
     
     IDX = []
     for v, x in system_dict['UPDATE'].items():
@@ -565,6 +569,14 @@ def markdown_crossrefrence(system_dict):
 # ###
 # OLD CODE
 # ###
+
+
+def find_markdown_title(content):
+    """Find all markdown links in content"""
+    ret_str = re.findall(MARKDOWN_HEADER_FINDERR, content)[0]
+    ret_str = ret_str.replace("title:", "").strip()
+    # ret_str = quote_it(ret_str)
+    return ret_str
 
 
 def scan_documents(scan_path):
