@@ -24,6 +24,9 @@ YAML_FIELDS = [
 MARKDOWN_LINK_FINDER = r"\[([^\]]*)\]\(([^)]*\.md)\)"
 LINK_FINDER = r"\[([^\]]+)\]\(([^)]+)\)"
 MARKDOWN_HEADER_FINDERR = r"title:.*"
+BACKLINKS_SELECTOR=r'# Backlinks\n(.*?)(?=\n# |\Z)'
+BACKLINKS_FINDER=r'# Backlinks\n'
+
 # Testing purposes only
 SYS_PATH = Path("/home/asmodi/Code/git/markdown_linker/test/markdown/SlipBox")
 
@@ -222,12 +225,15 @@ def find_yaml_header(content):
     """Find YAML header in markdown content"""
     yaml_match = re.search(r"---\n(.*?)\n---", content, re.DOTALL)
     if yaml_match:
+        logging.debug(f"Found yaml headers {yaml_match}")
         return yaml_match.group(1)
+    logging.debug(f"No yaml headers found")
     return ""
 
 
 def yaml_to_dict(yaml_content, capitalize_keys: bool = False) -> dict:
     """Convert YAML content to dictionary"""
+    logging.debug(f"Converting Yaml Headers to a dictionary")
     yaml_dict = {}
     for line in yaml_content.splitlines():
         if ":" in line:
@@ -285,7 +291,7 @@ def write_markdown_doc(markdon_doc_filepath: str, content: str):
 def find_backlinks_section(content):
     """Extract backlinks section from content"""
     backlinks_match = re.search(
-        r"# Backlinks\n\n(.*?)(?=\n# |\Z)", content, re.DOTALL
+        BACKLINKS_SELECTOR, content, re.DOTALL
     )
     if backlinks_match:
         return backlinks_match.group(1)
@@ -294,7 +300,7 @@ def find_backlinks_section(content):
 
 def split_on_backlinks_section(content):
     """Extract backlinks section from content"""
-    splitter = re.split(r"# Backlinks\n", content)
+    splitter = re.split(BACKLINKS_FINDER, content)
     if len(splitter) == 1:
         return [content, ""]
 
@@ -310,7 +316,7 @@ def find_markdown_links(content):
 
 def find_links(content):
     """Find all markdown links in content"""
-    return re.findall(MARKDOWN_LINK_FINDER, content)
+    return re.findall(LINK_FINDER, content)
 
 
 def get_links(content: str, markdown_only: bool = True) -> tuple:
@@ -388,7 +394,6 @@ def get_markdown_information(
     if len(knowledge_dict["LINKS"]) > 0:
         knowledge_dict["LINKS_PATH"] = [x[1] for x in knowledge_dict["LINKS"]]
 
-    knowledge_dict["TITLE"] = find_markdown_title(md_content)
     knowledge_dict["NEED2UPDATE"] = False
 
     yaml_dict = get_yaml_dict(md_content)
@@ -493,7 +498,7 @@ def markdown_link_crosswalker(markdowns_dict):
                 )
 
                 if target_md not in source_dic["BACKLINKS_PATH"]:
-                    update_list.append(source_dic)
+                    update_list.append(source_md)
                     source_dic["NEED2UPDATE"] = True
                     source_dic["BACKLINKS_PATH"].append(
                         (target_dic["TITLE"], target_md)
@@ -524,7 +529,8 @@ def markdown_link_crosswalker(markdowns_dict):
                     post_linkage(md_dict, tar, "To Markdown", "Broken")
                 )
 
-    update_list = list(set(update_list))
+    # update_list = list(set(update_list))
+    update_list
     return Crosslinks_list, update_list
 
 
@@ -539,7 +545,17 @@ def markdown_crossrefrence(system_dict):
         markdown_link_crosswalker(system_dict["MARKDOWNS_DICT"])
     )
 
-    system_dict["UPDATE"] = {"backlinks": crosswalk_update_list}
+    system_dict['UPDATE'] = {} 
+    system_dict["UPDATE"]['backlinks'] = list(set(crosswalk_update_list))
+    
+    IDX = []
+    for v, x in system_dict['UPDATE'].items():
+        IDX = IDX + [y for y in x]
+
+    system_dict['UPDATE']['IDX'] = list(set(IDX)) 
+    #system_dict['UPDATE']['IDX'] = list(set(system_dict['UPDATE'].values()))
+
+    return system_dict
 
 
 # ###
