@@ -2,7 +2,6 @@
 import argparse
 import csv
 import logging
-import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -74,6 +73,7 @@ def generate_sys_dict() -> dict:
     return {"SYSTEM_PATH": SYS_PATH, "MARKDOWNS_DICT": {}}
 
 
+# TO DELETE
 def quote_it(Input_String: str) -> str:
     """Quote string for CSV"""
     if not Input_String.startswith('"'):
@@ -85,6 +85,7 @@ def quote_it(Input_String: str) -> str:
     return Input_String
 
 
+# TO DELETE
 def add_headers_dict(Headers_Dict, file_path, title):
     if Headers_Dict.get(file_path) is not None:
         return Headers_Dict
