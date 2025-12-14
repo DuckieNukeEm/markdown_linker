@@ -49,6 +49,9 @@ class CallableDict(MutableMapping):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self._store!r}, call_on_get={self.call_on_get})"
 
+    def __str__(self) -> str:
+        return str(self._store)
+
     # Convenience helpers
     def raw(self, key: Any) -> Any:
         """Return the stored value for `key` without calling it."""

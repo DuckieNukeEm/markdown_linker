@@ -4,6 +4,11 @@ from pathlib import Path
 logging.getLogger(__name__)
 
 
+def empty_path():
+    """Returns an empty PosixPath"""
+    return Path("")
+
+
 def get_hierarchy_level(file_path, scan_path):
     """Get hierarchy level relative to scan path"""
     try:
