@@ -1,6 +1,8 @@
 import re
 
 from backlinks.logging import logging
+from backlinks.markdown import read_markdown_doc
+from backlinks.path import get_scan_relative_path
 
 # Constants
 YAML_FIELDS = [
@@ -13,66 +15,34 @@ YAML_FIELDS = [
     "EDITOR",
     "DATECREATED",
 ]
-MARKDOWN_LINK_FINDER = r"\[([^\]]*)\]\(([^)]*\.md)\)"
-LINK_FINDER = r"\[([^\]]+)\]\(([^)]+)\)"
+MARKDOWN_LINK_REGEX = r"\[([^\]]*)\]\(([^)]*\.md)\)"
+LINK_REGEX = r"\[([^\]]+)\]\(([^)]+)\)"
 MARKDOWN_HEADER_FINDERR = r"title:.*"
-BACKLINKS_SELECTOR = r"# Backlinks\n(.*?)(?=\n# |\Z)"
-BACKLINKS_FINDER = r"# Backlinks\n"
+BACKLINKS_REGEX = r"# Backlinks\n"
+# BACKLINKS_SECTION = r"# Backlinks\n(.*?)(?=\n# |\Z)"
+
+BACKLINKS_SECTION = BACKLINKS_REGEX + r"(.*?)(?=\n# |\Z)"
 
 
 logging.getLogger(__name__)
 
 
 # ###
-# Markdown operators functions
+# I/O
 # ###
-def find_yaml_header(content):
-    """Find YAML header in markdown content"""
-    yaml_match = re.search(r"---\n(.*?)\n---", content, re.DOTALL)
-    if yaml_match:
-        logging.debug(f"Found yaml headers {yaml_match}")
-        return yaml_match.group(1)
-    logging.debug("No yaml headers found")
-    return ""
+def write_markdown_doc(full_filepath: str, content: str):
+    """Function that writes a markdown file"""
+    with open(full_filepath, "w", encoding="utf-8") as f:
+        f.write(content)
+    logging.debug(f"Wrote updated content to {markdon_doc_filepath}")
 
 
-def yaml_to_dict(yaml_content, capitalize_keys: bool = False) -> dict:
-    """Convert YAML content to dictionary"""
-    logging.debug("Converting Yaml Headers to a dictionary")
-    yaml_dict = {}
-    for line in yaml_content.splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            if capitalize_keys:
-                key = key.upper()
-            yaml_dict[key.strip()] = value.strip()
-    return yaml_dict
-
-
-def get_yaml_dict(content) -> dict:
-    """Extract YAML front matter as a dictionary
-
-    :param content: input markdown content
-    :return: a dictionary of YAML fields, with the keys capitalized and all fields of YAML_FIELDS included
-    :rtype: dict
-    """
-    logging.info("Begging to extract yaml headers")
-    yaml_content = find_yaml_header(content)
-    source_yaml_dict = yaml_to_dict(yaml_content, capitalize_keys=True)
-    all_yaml_fields = set(YAML_FIELDS + list(source_yaml_dict.keys()))
-    yaml_dict = {}
-    for yf in all_yaml_fields:
-        yaml_dict[yf] = source_yaml_dict.get(yf, None)
-
-    yaml_dict["TAGS"] = (
-        yaml_dict["TAGS"].split(",") if yaml_dict["TAGS"] else []
-    )
-    return yaml_dict
-
-
-def find_backlinks_section(content):
+# ###
+# Links
+# ###
+def find_backlinks_section(content, backlinks_regex_section=BACKLINKS_SECTION):
     """Extract backlinks section from content"""
-    backlinks_match = re.search(BACKLINKS_SELECTOR, content, re.DOTALL)
+    backlinks_match = re.search(backlinks_regex_section, content, re.DOTALL)
     if backlinks_match:
         logging.debug("Found backlinks section")
         return backlinks_match.group(1)
@@ -80,9 +50,9 @@ def find_backlinks_section(content):
     return ""
 
 
-def split_on_backlinks_section(content):
+def split_on_backlinks_section(content, backlinks_regex=BACKLINKS_REGEX):
     """Extract backlinks section from content"""
-    splitter = re.split(BACKLINKS_FINDER, content)
+    splitter = re.split(backlinks_regex, content)
     if len(splitter) == 1:
         logging.debug("Didn't find backlinks section")
         return [content, ""]
@@ -93,16 +63,18 @@ def split_on_backlinks_section(content):
     return [main_body, backlinks]
 
 
-def find_markdown_links(content):
-    """Find all markdown links in content"""
-    return re.findall(MARKDOWN_LINK_FINDER, content)
-
-
-def find_links(content):
+def find_markdown_links(content, markdown_link_reges=MARKDOWN_LINK_REGEX):
     """Find all markdown links in content"""
     if content == "":
         return []
-    return re.findall(LINK_FINDER, content)
+    return re.findall(markdown_link_reges, content)
+
+
+def find_links(content, link_regex=LINK_REGEX):
+    """Find all markdown links in content"""
+    if content == "":
+        return []
+    return re.findall(link_regex, content)
 
 
 def get_links(content: str, markdown_only: bool = True) -> tuple:
@@ -123,20 +95,25 @@ def get_links(content: str, markdown_only: bool = True) -> tuple:
         return find_links(""), find_links("")
 
     split_md = split_on_backlinks_section(content)
+
+    if markdown_only:
+        regex_pattern = MARKDOWN_LINK_REGEX
+    else:
+        regex_pattern = LINK_REGEX
+
     if len(split_md) <= 1:
         return [], []
     elif len(split_md) == 1:
-        if markdown_only:
-            return find_markdown_links(split_md[0]), find_markdown_links("")
-        return find_links(split_md[0]), find_links("")
+        return find_links(split_md[0], regex_pattern), find_links("")
     else:
-        if markdown_only:
-            return find_markdown_links(split_md[0]), find_markdown_links(
-                split_md[1]
-            )
-        return find_links(split_md[0]), find_links(split_md[1])
+        return find_links(split_md[0], regex_pattern), find_links(
+            split_md[1], regex_pattern
+        )
 
 
+# ###
+# markdown
+# ###
 def get_markdown_information(
     md_file_link: str, markdown_dict: dict, system_path: str
 ):
@@ -147,7 +124,7 @@ def get_markdown_information(
         markdown_dict (dict): _description_
         system_dict (dict): _description_
     """
-    knowledge_dict: dict[str, Any] = {
+    knowledge_dict: dict = {
         "PATH": None,
         "REL_PATH": None,
         "BACKLINKS": [],

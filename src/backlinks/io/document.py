@@ -11,7 +11,7 @@ def read_document(doc_filepath: str):
     return content
 
 
-def write_doc(doc_filepath: str, content: str):
+def write_document(doc_filepath: str, content: str):
     """Function that writes a markdown file"""
     with open(doc_filepath, "w", encoding="utf-8") as f:
         f.write(content)
