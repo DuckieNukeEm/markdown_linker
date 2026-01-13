@@ -1,5 +1,5 @@
 # Defining the all module for backlinks path
 __all__ = ["path"]
 
-# Definig the dot process
+# defining the dope package
 from backlinks.path import path

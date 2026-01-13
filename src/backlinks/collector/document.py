@@ -1,4 +1,3 @@
-import re
 from secrets import token_hex
 
 from backlinks.collector import CallableDict
@@ -52,7 +51,7 @@ class DocumentDictionary(CallableDict):
         self.MARKDOWN_HEADER_FINDERR = r"title:.*"
         self.document_type = "markdown"
 
-    def generate_id(self, print: bool = False) -> str:
+    def generate_id(self, print: bool = False):
         """Generates a unique ID for the document if it does not already have one
 
         Returns:
@@ -62,7 +61,7 @@ class DocumentDictionary(CallableDict):
         if print:
             logging.debug(f"Generated new ID for document: {self['ID']}")
 
-    def load_links(Self, *args, **kwargs) -> tuple:
+    def load_links(self, *args, **kwargs):
         """Extract markdown links from content
 
         Args:
@@ -110,6 +109,9 @@ class DocumentDictionary(CallableDict):
         self.load_headers(loaded_content)
         if store_content:
             self["CONTENT"] = loaded_content
+
+        if self["ID"] == "":
+            self.generate_id()
 
     def save_file(self, path: Path = None):
         """Populates the DocumentDictionary from a given dictionary
