@@ -2,4 +2,4 @@
 __all__ = ["path"]
 
 # defining the dope package
-from backlinks.path import path
+from backlinks.path import *

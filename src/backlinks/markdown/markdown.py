@@ -1,20 +1,13 @@
 import re
 
 from backlinks.logging import logging
-from backlinks.markdown import read_markdown_doc
-from backlinks.path import get_scan_relative_path
+from backlinks.io.markdown import read_markdown_doc, write_markdown_doc
+from backlinks.path.path import get_scan_relative_path
+from backlinks.lib import type_of_link
+ 
 
 # Constants
-YAML_FIELDS = [
-    "ID",
-    "TITLE",
-    "DESCRIPTION",
-    "PUBLISHED",
-    "DATE",
-    "TAGS",
-    "EDITOR",
-    "DATECREATED",
-]
+
 MARKDOWN_LINK_REGEX = r"\[([^\]]*)\]\(([^)]*\.md)\)"
 LINK_REGEX = r"\[([^\]]+)\]\(([^)]+)\)"
 MARKDOWN_HEADER_FINDERR = r"title:.*"
@@ -26,15 +19,6 @@ BACKLINKS_SECTION = BACKLINKS_REGEX + r"(.*?)(?=\n# |\Z)"
 
 logging.getLogger(__name__)
 
-
-# ###
-# I/O
-# ###
-def write_markdown_doc(full_filepath: str, content: str):
-    """Function that writes a markdown file"""
-    with open(full_filepath, "w", encoding="utf-8") as f:
-        f.write(content)
-    logging.debug(f"Wrote updated content to {markdon_doc_filepath}")
 
 
 # ###
@@ -73,8 +57,9 @@ def find_markdown_links(content, markdown_link_reges=MARKDOWN_LINK_REGEX):
 def find_links(content, link_regex=LINK_REGEX):
     """Find all markdown links in content"""
     if content == "":
-        return []
-    return re.findall(link_regex, content)
+        return {}
+    res = re.findall(link_regex, content)
+    return type_of_link(res)
 
 
 def get_links(content: str, markdown_only: bool = True) -> tuple:
@@ -110,20 +95,14 @@ def get_links(content: str, markdown_only: bool = True) -> tuple:
             split_md[1], regex_pattern
         )
 
-
+_ = """
 # ###
 # markdown
 # ###
 def get_markdown_information(
     md_file_link: str, markdown_dict: dict, system_path: str
 ):
-    """get's relevent information for each markdown file
 
-    Args:
-        md_file_link (_type_): _description_
-        markdown_dict (dict): _description_
-        system_dict (dict): _description_
-    """
     knowledge_dict: dict = {
         "PATH": None,
         "REL_PATH": None,
@@ -147,10 +126,10 @@ def get_markdown_information(
 
     if len(knowledge_dict["BACKLINKS"]) > 0:
         knowledge_dict["BACKLINKS_PATH"] = [
-            x[1] for x in knowledge_dict["BACKLINKS"]
+            x for x in knowledge_dict["BACKLINKS"].keys()
         ]
     if len(knowledge_dict["LINKS"]) > 0:
-        knowledge_dict["LINKS_PATH"] = [x[1] for x in knowledge_dict["LINKS"]]
+        knowledge_dict["LINKS_PATH"] = [x for x in knowledge_dict["LINKS"].keys()]
 
     knowledge_dict["NEED2UPDATE"] = False
 
@@ -160,3 +139,4 @@ def get_markdown_information(
     markdown_dict[knowledge_dict["REL_PATH"]] = knowledge_dict.copy()
 
     return markdown_dict
+"""

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import csv
-import logging
+import logging  
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -83,7 +83,6 @@ def quote_it(Input_String: str) -> str:
         Input_String = Input_String + '"'
 
     return Input_String
-
 
 # TO DELETE
 def add_headers_dict(Headers_Dict, file_path, title):
@@ -346,7 +345,7 @@ def get_links(content: str, markdown_only: bool = True) -> tuple[Any, Any]:
             )
         return find_links(split_md[0]), find_links(split_md[1])
 
-
+# TO DELETE
 def get_existing_backlinks(backlink_section):
     """Extract existing backlinks from backlink section"""
     if backlink_section == "":

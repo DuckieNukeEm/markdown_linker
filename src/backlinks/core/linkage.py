@@ -1,6 +1,7 @@
 from backlinks.collector.book import BookDictionary
 from backlinks.collector.document import DocumentDictionary
 from backlinks.logging import logging
+from urllib.parse import urlparse
 
 # ###
 # Variables
@@ -47,6 +48,47 @@ def markdown_link_crosswalker(Book: BookDictionary):
 
     tracker_idx = 0
 
+    for source_lnk, source_dic in BookDictionary.PAGES:
+        for lnk, lnk_type in source_dic['LINKS'].keys():
+            if lnk_type == 'URL':
+                Crosslinks_list.append(
+                    post_linkage(
+                        source_dic, {'REL_PATH': lnk, 'TITLE': urlparse(lnk).netloc}, "URL LINK", "Valid"
+                    )
+                )
+                continue
+                
+            try:
+                if lnk in BookDictionary.PAGES.keys():
+  
+                    target_dic = BookDictionary.PAGES[lnk]
+                    logging.debug(f"The {lnk} does have a target file")
+                    Crosslinks_list.append(
+                        post_linkage(source_dic, target_dic, "To Markdown", "Valid")
+                    )
+                    if lnk in target_dic['BACKLINKS_PATH']:
+                        logging.debug(f"backlinks exists from {lnk} to {source_lnk}")
+                        Crosslinks_list.append(
+                        post_linkage(target_dic, source_dic, "Backlink", "Valid")
+                    )
+                    else:
+                       logging.debug(f"backlinks DOES NOT exists from {lnk} to {source_lnk}")  
+                        target_dic["NEED2UPDATE"] = True
+                        target_dic.add_backlink(lnk)
+                        Crosslinks_list.append(
+                            post_linkage(
+                                target_dic, source_dic, "Markdown Backlink", "Valid"
+                            )
+                        )
+                    continue
+            except Exception as e:
+                logging.error(f"Exception found when processing link {lnk}")
+                print(f"Caught this error: {e}")
+            Crosslinks_list.append(
+                    post_linkage(
+                        source_dic, {'REL_PATH': lnk, 'TITLE': '' }, "Unknown LINK", "Invalid"
+                    )
+                ) 
     # checking that these files do crosslink
     while tracker_idx < len(markdowns_dict):
         # Getting current source markdown file and its data

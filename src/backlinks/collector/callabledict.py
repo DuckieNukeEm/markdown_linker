@@ -26,7 +26,11 @@ class CallableDict(MutableMapping):
 
     # MutableMapping required methods
     def __getitem__(self, key: Any) -> Any:
-        val = self._store[key]
+        try:
+            val = self._store[key]
+        except KeyError as e:
+            raise KeyError(f"Key {key} not found with error: {e}")
+        
         if self.call_on_get and callable(val):
             return val()
         return val
@@ -56,6 +60,7 @@ class CallableDict(MutableMapping):
     def raw(self, key: Any) -> Any:
         """Return the stored value for `key` without calling it."""
         return self._store[key]
+    
 
     def call(self, key: Any, *args, **kwargs) -> Any:
         """Call the stored callable for `key` with given args/kwargs.
@@ -85,6 +90,12 @@ class CallableDict(MutableMapping):
         else:
             # Non-internal attribute assignment maps to setting a key
             self[name] = value
+    def get(self, key, default_value) -> Any:
+        """function to replicate the dict.get"""
+        if self[key]:
+            return self[key]
+        else:
+            return default_value
 
 
 if __name__ == "__main__":

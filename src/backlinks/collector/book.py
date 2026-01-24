@@ -28,20 +28,30 @@ class BookDictionary:
         root_path (Path): the root path of the scan
         documents (dict): A dictionary of DocumentDictionary objects
     """
+    PATH: Path 
+    ROOT_PATH: Path 
+    PAGES: dict[Path,DocumentDictionary] = field(default=dict)
+    SAVE_PATH: Path = field(defauly=Path())
+    CROSSLINK: list[str] = field(default=list)
 
-    PATH: empty_path
-    documents: dict[DocumentDictionary]
-    link_dictionary: dict = field(init=False)
-
-    def __post_init__(self):
-        self.load()
-
-    def load(self):
+    def load(self, default_value: dict = None, set_value: dict = None, store_content: bool = True):
         """Loads the book structure by scanning the root path for markdown files"""
-        link_list = generate_link_list(self.PATH)
-        for md_file in link_list:
+        if self.PAGES:
+            return None
+        
+        self.PAGES = dict.fromkeys(generate_link_list(self.PATH),None)
+        for md_file in self.PAGES.keys():
             logging.debug(f"Processing markdown file: {md_file}")
             # Further processing can be added here
-            self.documents[md_file] = DocumentDictionary().load_document(
-                md_file, self.PATH
-            )
+            try:
+                self.PAGES[md_file] = DocumentDictionary().load_document(
+                md_file, 
+                self.PATH,
+                default_value = default_value,
+                set_values = set_value,
+                store_content = store_content
+                )
+            except Exception as e:
+                logging.error(f"Exception found: {e}")
+
+

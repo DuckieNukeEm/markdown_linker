@@ -6,6 +6,7 @@ from backlinks.logging import logging
 from backlinks.markdown.markdown import get_links
 from backlinks.path.path import empty_path, get_scan_relative_path
 from backlinks.yaml import meta_to_dict
+from backlinks.lib import type_of_link
 
 # ###
 # Variables
@@ -18,7 +19,7 @@ DOCUMENT_FIELDS = {
     "REL_PATH": "",
     "BACKLINKS": [],
     "BACKLINKS_PATH": [],
-    "LINKS": [],
+    "LINKS": {},
     "LINKS_PATH": [],
     "NEED2UPDATE": False,
     "CONTENT": "",
@@ -84,8 +85,19 @@ class DocumentDictionary(CallableDict):
         for x in header.keys():
             self[x] = header[x]
 
+    def add_link(self, link: str):
+        """adds a link to the dictionary"""
+        if link not in self['LINKS'].keys():
+            self['LNKS'][link] =  type_of_link(link)
+
+    def add_backlink(self, link: str):
+        """adds a backlink to the dictionary"""
+        if link not in self['BACKLINKS'].keys():
+            self['BACKLNKS'][link] =  type_of_link(link)
+
+    
     def load_file(
-        self, path: Path, system_path: str, store_content: bool = True
+        self, path: Path, system_path: str, default_values: dict = None, set_values: dict = None, store_content: bool = True
     ):
         """Populates the DocumentDictionary from a given dictionary
 
@@ -100,9 +112,9 @@ class DocumentDictionary(CallableDict):
         self.load_links(loaded_content)
 
         if len(self["BACKLINKS"]) > 0:
-            self["BACKLINKS_PATH"] = [x[1] for x in self["BACKLINKS"]]
+            self["BACKLINKS_PATH"] = self["BACKLINKS"].keys()
         if len(self["LINKS"]) > 0:
-            self["LINKS_PATH"] = [x[1] for x in self["LINKS"]]
+            self["LINKS_PATH"] = self["LINKS"].keys()
 
         self["NEED2UPDATE"] = False
 
@@ -113,6 +125,12 @@ class DocumentDictionary(CallableDict):
         if self["ID"] == "":
             self.generate_id()
 
+        for k,v in default_values.items():
+            self[k] = self.get(k,v)
+        
+        for k,v in set_values.items():
+            self[k] = v
+        
     def save_file(self, path: Path = None):
         """Populates the DocumentDictionary from a given dictionary
 
