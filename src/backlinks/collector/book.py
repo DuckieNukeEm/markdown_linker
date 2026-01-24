@@ -1,7 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 
+from backlinks.collector.document import DocumentDictionary
 from backlinks.logging import logging
-from backlinks.path.path import empty_path
+from backlinks.path.path import empty_path, generate_link_list
 
 # ###
 # Variables
@@ -28,5 +30,18 @@ class BookDictionary:
     """
 
     PATH: empty_path
-    root_path: empty_path
-    documents: dict
+    documents: dict[DocumentDictionary]
+    link_dictionary: dict = field(init=False)
+
+    def __post_init__(self):
+        self.load()
+
+    def load(self):
+        """Loads the book structure by scanning the root path for markdown files"""
+        link_list = generate_link_list(self.PATH)
+        for md_file in link_list:
+            logging.debug(f"Processing markdown file: {md_file}")
+            # Further processing can be added here
+            self.documents[md_file] = DocumentDictionary().load_document(
+                md_file, self.PATH
+            )

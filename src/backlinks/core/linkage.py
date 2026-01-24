@@ -33,7 +33,7 @@ def pull_markdown_link_list(markdown_dict):
     return link_list
 
 
-def markdown_link_crosswalker(markdowns_dict):
+def markdown_link_crosswalker(Book: BookDictionary):
     """builds the links between markdown files and external files
 
     Args:
