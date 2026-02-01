@@ -1,7 +1,8 @@
+from urllib.parse import urlparse
+
 from backlinks.collector.book import BookDictionary
 from backlinks.collector.document import DocumentDictionary
 from backlinks.logging import logging
-from urllib.parse import urlparse
 
 # ###
 # Variables
@@ -34,144 +35,82 @@ def pull_markdown_link_list(markdown_dict):
     return link_list
 
 
-def markdown_link_crosswalker(Book: BookDictionary):
+def make_Crosslink(Book: BookDictionary):
     """builds the links between markdown files and external files
 
     Args:
         markdown_dict (_type_): markdown dict
     """
-
-    Crosslinks_list = []
-    markdown_list = list(markdowns_dict.items())
-    update_list = []
-    link_list = pull_markdown_link_list(markdowns_dict)
-
-    tracker_idx = 0
+    Crosslinks_list = Book.STORAGE_ENGINE.CROSSLINK
 
     for source_lnk, source_dic in BookDictionary.PAGES:
-        for lnk, lnk_type in source_dic['LINKS'].keys():
-            if lnk_type == 'URL':
+        for lnk, lnk_type in source_dic["LINKS"].keys():
+            if lnk_type == "URL":
                 Crosslinks_list.append(
                     post_linkage(
-                        source_dic, {'REL_PATH': lnk, 'TITLE': urlparse(lnk).netloc}, "URL LINK", "Valid"
+                        source_dic,
+                        {"REL_PATH": lnk, "TITLE": urlparse(lnk).netloc},
+                        "URL LINK",
+                        "Valid",
                     )
                 )
                 continue
-                
+
             try:
                 if lnk in BookDictionary.PAGES.keys():
-  
+
                     target_dic = BookDictionary.PAGES[lnk]
                     logging.debug(f"The {lnk} does have a target file")
                     Crosslinks_list.append(
-                        post_linkage(source_dic, target_dic, "To Markdown", "Valid")
+                        post_linkage(
+                            source_dic, target_dic, "Markedon Link", "Valid"
+                        )
                     )
-                    if lnk in target_dic['BACKLINKS_PATH']:
-                        logging.debug(f"backlinks exists from {lnk} to {source_lnk}")
+                    # Checking if we want backlinks
+                    if target_dic["BACKLINK"] is not True:
+                        logging.debug(
+                            f"The {lnk} does have a target file, but doesn't want to backlink to it"
+                        )
+                        continue
+
+                    if lnk in target_dic["BACKLINKS_PATH"]:
+                        logging.debug(
+                            f"backlinks exists from {lnk} to {source_lnk}"
+                        )
                         Crosslinks_list.append(
-                        post_linkage(target_dic, source_dic, "Backlink", "Valid")
-                    )
+                            post_linkage(
+                                target_dic,
+                                source_dic,
+                                "Markdown Backlink",
+                                "Valid",
+                            )
+                        )
                     else:
-                       logging.debug(f"backlinks DOES NOT exists from {lnk} to {source_lnk}")  
-                        target_dic["NEED2UPDATE"] = True
+                        logging.debug(
+                            f"backlinks DOES NOT exists from {lnk} to {source_lnk}"
+                        )
                         target_dic.add_backlink(lnk)
                         Crosslinks_list.append(
                             post_linkage(
-                                target_dic, source_dic, "Markdown Backlink", "Valid"
+                                target_dic,
+                                source_dic,
+                                "Markdown Backlink",
+                                "Added",
                             )
                         )
                     continue
+                else:
+                    Crosslinks_list.append(
+                        post_linkage(
+                            source_dic,
+                            {"REL_PATH": lnk, "TITLE": ""},
+                            "Unknown LINK",
+                            "Invalid",
+                        )
+                    )
             except Exception as e:
                 logging.error(f"Exception found when processing link {lnk}")
                 print(f"Caught this error: {e}")
-            Crosslinks_list.append(
-                    post_linkage(
-                        source_dic, {'REL_PATH': lnk, 'TITLE': '' }, "Unknown LINK", "Invalid"
-                    )
-                ) 
-    # checking that these files do crosslink
-    while tracker_idx < len(markdowns_dict):
-        # Getting current source markdown file and its data
-        source_md, source_dic = markdown_list[tracker_idx]
-        next_tracker_idx = tracker_idx + 1
-
-        while next_tracker_idx < len(markdowns_dict):
-            target_md, target_dic = markdown_list[next_tracker_idx]
-
-            # Check if source links to target
-            if target_md in source_dic["LINKS_PATH"]:
-                logging.debug(
-                    f"found {target_md} is in the link list of {source_md}"
-                )
-                link_list[source_md].remove(target_md)
-                Crosslinks_list.append(
-                    post_linkage(source_dic, target_dic, "To Markdown", "Valid")
-                )
-
-                # if the source does link to the target, then the target NEEDS to backlink to source
-                if source_md not in target_dic["BACKLINKS_PATH"]:
-                    logging.debug(
-                        f"{source_md} is NOT in the backlinks section for {target_md}"
-                    )
-                    update_list.append(target_md)
-                    target_dic["NEED2UPDATE"] = True
-                    target_dic["BACKLINKS_PATH"].append(
-                        (source_dic["TITLE"], source_md)
-                    )
-                Crosslinks_list.append(
-                    post_linkage(
-                        target_dic, source_dic, "Markdown Backlink", "Valid"
-                    )
-                )
-
-            # same as above, just flipped
-            if source_md in target_dic["LINKS_PATH"]:
-                logging.debug(
-                    f"found {source_md} is in the link list of {target_md}"
-                )
-                link_list[target_md].remove(source_md)
-                Crosslinks_list.append(
-                    post_linkage(target_dic, source_dic, "To Markdown", "Valid")
-                )
-
-                if target_md not in source_dic["BACKLINKS_PATH"]:
-                    logging.debug(
-                        f"{target_md} is NOT in the backlinks section for {source_md}"
-                    )
-                    update_list.append(source_md)
-                    source_dic["NEED2UPDATE"] = True
-                    source_dic["BACKLINKS_PATH"].append(
-                        (target_dic["TITLE"], target_md)
-                    )
-                Crosslinks_list.append(
-                    post_linkage(
-                        source_dic, target_dic, "Markdown Backlink", "Valid"
-                    )
-                )
-            next_tracker_idx += 1
-        tracker_idx += 1
-        if link_list[source_md] == []:
-            del link_list[source_md]
-
-    # Now, we've gone through all the markdown docs, and there are records that don't tie to anything
-    # either due to files don't exists, or are formatted wrong, or otherwise
-    for md_file, md_link_list in link_list:
-        md_dict = markdowns_dict[md_file]
-        for links in md_link_list:
-            if links.lower().starts_with("http"):
-                tar = {"REL_PATH": links, "TITLE": links}
-                Crosslinks_list.append(
-                    post_linkage(md_dict, tar, "http", "Valid")
-                )
-            elif links.lower().ends_with(".md"):
-                tar = {"REL_PATH": links, "TITLE": links}
-                Crosslinks_list.append(
-                    post_linkage(md_dict, tar, "To Markdown", "Broken")
-                )
-
-    # update_list = list(set(update_list))
-    update_list
-    return Crosslinks_list, update_list
 
 
 def markdown_crossrefrence(system_dict):

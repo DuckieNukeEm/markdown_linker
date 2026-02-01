@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-from typing import Any, Callable, Iterable, Iterator, Mapping, Optional
+from typing import Any, Iterator, Mapping, Optional
 
 
 class CallableDict(MutableMapping):
@@ -30,7 +30,7 @@ class CallableDict(MutableMapping):
             val = self._store[key]
         except KeyError as e:
             raise KeyError(f"Key {key} not found with error: {e}")
-        
+
         if self.call_on_get and callable(val):
             return val()
         return val
@@ -60,7 +60,6 @@ class CallableDict(MutableMapping):
     def raw(self, key: Any) -> Any:
         """Return the stored value for `key` without calling it."""
         return self._store[key]
-    
 
     def call(self, key: Any, *args, **kwargs) -> Any:
         """Call the stored callable for `key` with given args/kwargs.
@@ -90,6 +89,7 @@ class CallableDict(MutableMapping):
         else:
             # Non-internal attribute assignment maps to setting a key
             self[name] = value
+
     def get(self, key, default_value) -> Any:
         """function to replicate the dict.get"""
         if self[key]:

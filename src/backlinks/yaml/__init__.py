@@ -1,4 +1,5 @@
 from re import DOTALL, search
+
 from backlinks.logging import logging
 
 # ###
@@ -18,6 +19,7 @@ META_FIELDS = [
     "TAGS",
     "EDITOR",
     "DATECREATED",
+    "BACKLINK",
 ]
 
 

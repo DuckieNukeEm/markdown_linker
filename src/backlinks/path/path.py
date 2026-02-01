@@ -45,7 +45,7 @@ def get_scan_absolute_path(file_path, scan_path):
     return abs_path
 
 
-def generate_link_list(scan_path):
+def generate_file_list(scan_path):
     """Generates a list of markdown files to run through"""
     scan_path = Path(scan_path).resolve()
     logging.info(f"Scanning documents in {scan_path}")
